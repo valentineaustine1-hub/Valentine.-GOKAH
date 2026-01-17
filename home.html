@@ -1,0 +1,180 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gokah.Web</title>
+    <style>
+        /* --- CSS STYLING --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        /* The main scrollable container */
+        .reels-container {
+            width: 100%;
+            max-width: 420px; /* Standard mobile width */
+            height: 90vh;
+            background: #111;
+            border-radius: 10px;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory; /* Locks scroll to each video */
+            scrollbar-width: none; /* Firefox */
+            position: relative;
+        }
+
+        .reels-container::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        /* Individual Video Card */
+        .video-card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: start;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Overlay UI (Username, Description) */
+        .video-info {
+            position: absolute;
+            bottom: 20px;
+            left: 15px;
+            color: white;
+            z-index: 10;
+        }
+
+        .video-info h3 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .video-info p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Floating Like Heart Animation */
+        .heart-animation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            color: white;
+            font-size: 80px;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .heart-pop {
+            animation: pop 0.8s ease-out;
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="reels-container" id="reels-container">
+        </div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+        const API_KEY = 'YOUR_PEXELS_API_KEY'; // Replace with your real Pexels API Key
+        const container = document.getElementById('reels-container');
+
+        // 1. Fetch Real Data from Pexels API
+        async function fetchVideos() {
+            try {
+                const response = await fetch('https://api.pexels.com/videos/popular?per_page=5', {
+                    headers: { Authorization: API_KEY }
+                });
+                const data = await response.json();
+                renderReels(data.videos);
+            } catch (err) {
+                console.error("API Error: Make sure your API Key is valid!", err);
+            }
+        }
+
+        // 2. Create and Append Elements
+        function renderReels(videos) {
+            videos.forEach(videoData => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                
+                // Get a vertical/SD version of the video for faster loading
+                const videoURL = videoData.video_files.find(f => f.width < 1000).link;
+
+                card.innerHTML = `
+                    <video loop muted src="${videoURL}"></video>
+                    <div class="heart-animation">❤️</div>
+                    <div class="video-info">
+                        <h3>@${videoData.user.name}</h3>
+                        <p>${videoData.video_files[0].quality} video from Pexels</p>
+                    </div>
+                `;
+
+                // Add Double Tap Event
+                card.addEventListener('dblclick', (e) => showHeart(card));
+                
+                container.appendChild(card);
+            });
+
+            setupObserver();
+        }
+
+        // 3. Auto-play video only when it is "Active" in view
+        function setupObserver() {
+            const options = { threshold: 0.6 }; // 60% of video visible triggers play
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    if (entry.isIntersecting) {
+                        video.play();
+                    } else {
+                        video.pause();
+                        video.currentTime = 0; 
+                    }
+                });
+            }, options);
+
+            document.querySelectorAll('.video-card').forEach(card => observer.observe(card));
+        }
+
+        // 4. Heart Animation Logic
+        function showHeart(card) {
+            const heart = card.querySelector('.heart-animation');
+            heart.classList.add('heart-pop');
+            setTimeout(() => heart.classList.remove('heart-pop'), 800);
+        }
+
+        // Start the app
+        fetchVideos();
+    </script>
+</body>
+</html>
